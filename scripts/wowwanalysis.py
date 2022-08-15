@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
+from matplotlib.font_manager import FontProperties
 
 idx = pd.IndexSlice
 
@@ -47,7 +48,7 @@ class WOWWAnalysis():
 
         self.data = data
         self.op_start = op_start
-        self.tpop = tpop
+        self.tpop = pd.Timedelta(tpop,'h')
         self.tpop_h = self.tpop_h()
         self.cont_factor = cont_factor
         self.cont_factor2 = cont_factor2
@@ -240,7 +241,7 @@ class WOWWAnalysis():
 
         tr = wf_op_dur + self.tpop_h + self.cont_time # calculation of Reference Period (Tr), which corresponds to the duration of a marine operation
         op_end = self.op_start + tr
-
+        self.op_end = op_end
         op_duration = op_end - self.op_start
 
         op_time = pd.Series({'START':self.op_start,
@@ -252,7 +253,9 @@ class WOWWAnalysis():
     def woww_analysis(self,
                       limits:bool=True,
                       woows:bool=True,
+                      times:bool=True,
                       stats:bool=True,
+                      wowws_allowed:bool=True,
                       op:bool=True):
         """
         A dashboard with relevant information regarding the WOWW analysis.
@@ -327,17 +330,41 @@ class WOWWAnalysis():
         ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 
         if woows:
-            for col in self.wowws:
-                ax.axvspan(self.wowws.loc['START',col],self.wowws.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+            if wowws_allowed:
+                for col in self.wowws_allowed:
+                    ax.axvspan(self.wowws_allowed.loc['START',col],self.wowws_allowed.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+            else:
+                for col in self.wowws:
+                    ax.axvspan(self.wowws.loc['START',col],self.wowws.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+        if times:
+            wf_issuance = self.wf_issuance.strftime('%Y-%m-%d %H:%M')
+            op_start = self.op_start.strftime('%Y-%m-%d %H:%M')
+            op_end = self.op_end.strftime('%Y-%m-%d %H:%M')
+            tpop = str(self.tpop).replace('days','days')[0:12]
+            tc = str(self.cont_time).replace('days','days')[0:12]
+            tr = str(self.time_reference).replace('days','days')[0:12]
+
+            op_table_data = pd.DataFrame([tpop,tc,wf_issuance,tr,op_start,op_end])
+            op_table_index = ['OP PROC TIME','CONT TIME','WF ISSUANCE','REF TIME','OP START','OP END']
+        #     op_table_index = ['Tpop','Tc','Dprev','Tr','INÍCIO \nOPERAÇÃO','FIM \nOPERAÇÃO']
+
+            from matplotlib.font_manager import FontProperties
+
+            op_table = ax.table(cellText=op_table_data.values,rowLabels=op_table_index,cellLoc='left',rowLoc='right',bbox=[1.38,-0.005,0.21,1.])
+            for (row, col), cell in op_table.get_celld().items():
+                if (col == -1):
+                    cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+
+
+
 
         if stats:
             stats_table_srt = self.stats_table.copy()
             for column in stats_table_srt.columns:
-                stats_table_srt.loc[['START','END'],column] = pd.to_datetime(stats_table_srt.loc[['START','END'],column]).dt.strftime("%d/%m/%y %H:%M")
+                stats_table_srt.loc[['START','END'],column] = pd.to_datetime(stats_table_srt.loc[['START','END'],column]).dt.strftime("%Y-%m-%d %H:%M")
             stats_table_srt.loc['DURATION'] = stats_table_srt.loc['DURATION'].astype('str').str.replace('days','days')
 
             stats_table_srt = stats_table_srt.reindex(['Hs (mean \u00B1 std)','Hs (median)','Tp (mean \u00B1 std)','Tp (median)','Cvel (mean \u00B1 std)','Cvel (median)','START','END','DURATION'])
-
 
             table_lenght = 0.25*stats_table_srt.shape[1]
             table_woww = ax.table(cellText=stats_table_srt.values,colLabels=stats_table_srt.columns,rowLabels=stats_table_srt.index,cellLoc='center',rowLoc='right',bbox=[0.2,-1.4,table_lenght,1.1])
