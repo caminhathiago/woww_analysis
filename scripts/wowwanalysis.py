@@ -7,6 +7,13 @@ Contacts:
 - caminha.thiago@gmail.com
 
 Project status: conceptualization
+
+To implement:
+- [DONE] one method for each dashboard plot element (e.g. stats_table, times_table)
+- wowws_alowed stats table
+- mark best woww (in plot and table)
+
+
 """
 
 import pandas as pd
@@ -201,7 +208,6 @@ class WOWWAnalysis():
         Time of operational procedure in hours. Derived from Tpop.
         """
 
-        # Returns time_pop in hours
         return pd.Timedelta(self.tpop,'h')
 
     def cont_time(self):
@@ -210,7 +216,6 @@ class WOWWAnalysis():
         contingency factor
         """
 
-        # Calculates the contingency time
         return pd.Timedelta(self.cont_factor*self.tpop_h,'h')
 
     def wf_from_op(self):
@@ -219,9 +224,8 @@ class WOWWAnalysis():
         beggining of the marine operation
         """
 
-        # Calculates the duration
         wf_op_dur = self.op_start - self.wf_issuance
-        return pd.Timedelta(wf_op_dur,'h') # conversion of wf_tpop_dur to hours units
+        return pd.Timedelta(wf_op_dur,'h')
 
     def time_reference(self):
         """
@@ -236,10 +240,10 @@ class WOWWAnalysis():
         and duration.
         """
 
-        wf_op_dur = self.op_start - self.wf_issuance # duration from last weather forecast issuance to start of workable weather window
-        wf_op_dur = pd.Timedelta(wf_op_dur,'h') # conversion of wf_tpop_dur to hours units
+        wf_op_dur = self.op_start - self.wf_issuance
+        wf_op_dur = pd.Timedelta(wf_op_dur,'h')
 
-        tr = wf_op_dur + self.tpop_h + self.cont_time # calculation of Reference Period (Tr), which corresponds to the duration of a marine operation
+        tr = wf_op_dur + self.tpop_h + self.cont_time
         op_end = self.op_start + tr
         self.op_end = op_end
         op_duration = op_end - self.op_start
@@ -337,40 +341,43 @@ class WOWWAnalysis():
                 for col in self.wowws:
                     ax.axvspan(self.wowws.loc['START',col],self.wowws.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
         if times:
-            wf_issuance = self.wf_issuance.strftime('%Y-%m-%d %H:%M')
-            op_start = self.op_start.strftime('%Y-%m-%d %H:%M')
-            op_end = self.op_end.strftime('%Y-%m-%d %H:%M')
-            tpop = str(self.tpop).replace('days','days')[0:12]
-            tc = str(self.cont_time).replace('days','days')[0:12]
-            tr = str(self.time_reference).replace('days','days')[0:12]
-
-            op_table_data = pd.DataFrame([tpop,tc,wf_issuance,tr,op_start,op_end])
-            op_table_index = ['OP PROC TIME','CONT TIME','WF ISSUANCE','REF TIME','OP START','OP END']
-        #     op_table_index = ['Tpop','Tc','Dprev','Tr','INÍCIO \nOPERAÇÃO','FIM \nOPERAÇÃO']
-
-            from matplotlib.font_manager import FontProperties
-
-            op_table = ax.table(cellText=op_table_data.values,rowLabels=op_table_index,cellLoc='left',rowLoc='right',bbox=[1.38,-0.005,0.21,1.])
-            for (row, col), cell in op_table.get_celld().items():
-                if (col == -1):
-                    cell.set_text_props(fontproperties=FontProperties(weight='bold'))
-
-
-
+            self.plot_times_table(ax=ax)
 
         if stats:
-            stats_table_srt = self.stats_table.copy()
-            for column in stats_table_srt.columns:
-                stats_table_srt.loc[['START','END'],column] = pd.to_datetime(stats_table_srt.loc[['START','END'],column]).dt.strftime("%Y-%m-%d %H:%M")
-            stats_table_srt.loc['DURATION'] = stats_table_srt.loc['DURATION'].astype('str').str.replace('days','days')
+            self.plot_stats_table(ax=ax)
 
-            stats_table_srt = stats_table_srt.reindex(['Hs (mean \u00B1 std)','Hs (median)','Tp (mean \u00B1 std)','Tp (median)','Cvel (mean \u00B1 std)','Cvel (median)','START','END','DURATION'])
+    def plot_stats_table(self,ax=None):
+        stats_table_srt = self.stats_table.copy()
+        for column in stats_table_srt.columns:
+            stats_table_srt.loc[['START','END'],column] = pd.to_datetime(stats_table_srt.loc[['START','END'],column]).dt.strftime("%Y-%m-%d %H:%M")
+        stats_table_srt.loc['DURATION'] = stats_table_srt.loc['DURATION'].astype('str').str.replace('days','days')
 
-            table_lenght = 0.25*stats_table_srt.shape[1]
-            table_woww = ax.table(cellText=stats_table_srt.values,colLabels=stats_table_srt.columns,rowLabels=stats_table_srt.index,cellLoc='center',rowLoc='right',bbox=[0.2,-1.4,table_lenght,1.1])
+        stats_table_srt = stats_table_srt.reindex(['Hs (mean \u00B1 std)','Hs (median)','Tp (mean \u00B1 std)','Tp (median)','Cvel (mean \u00B1 std)','Cvel (median)','START','END','DURATION'])
 
-            from matplotlib.font_manager import FontProperties
+        table_lenght = 0.25*stats_table_srt.shape[1]
+        table_woww = ax.table(cellText=stats_table_srt.values,colLabels=stats_table_srt.columns,rowLabels=stats_table_srt.index,cellLoc='center',rowLoc='right',bbox=[0.2,-1.4,table_lenght,1.1])
 
-            for (row, col), cell in table_woww.get_celld().items():
-                if (row == 0) or (col == -1):
-                    cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+        from matplotlib.font_manager import FontProperties
+
+        for (row, col), cell in table_woww.get_celld().items():
+            if (row == 0) or (col == -1):
+                cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+
+    def plot_times_table(self,ax):
+        wf_issuance = self.wf_issuance.strftime('%Y-%m-%d %H:%M')
+        op_start = self.op_start.strftime('%Y-%m-%d %H:%M')
+        op_end = self.op_end.strftime('%Y-%m-%d %H:%M')
+        tpop = str(self.tpop).replace('days','days')[0:12]
+        tc = str(self.cont_time).replace('days','days')[0:12]
+        tr = str(self.time_reference).replace('days','days')[0:12]
+
+        times_table_data = pd.DataFrame([tpop,tc,wf_issuance,tr,op_start,op_end])
+        times_table_index = ['OP PROC TIME','CONT TIME','WF ISSUANCE','REF TIME','OP START','OP END']
+    #     times_table_index = ['Tpop','Tc','Dprev','Tr','INÍCIO \nOPERAÇÃO','FIM \nOPERAÇÃO']
+
+        from matplotlib.font_manager import FontProperties
+
+        op_table = ax.table(cellText=times_table_data.values,rowLabels=times_table_index,cellLoc='left',rowLoc='right',bbox=[1.38,-0.005,0.21,1.])
+        for (row, col), cell in op_table.get_celld().items():
+            if (col == -1):
+                cell.set_text_props(fontproperties=FontProperties(weight='bold'))
