@@ -10,7 +10,9 @@ Project status: conceptualization
 
 To implement:
 - [DONE] one method for each dashboard plot element (e.g. stats_table, times_table)
-- wowws_alowed stats table
+- wowws_allowed
+    - Mark allowed/not allowed with green/red?
+    - Only dispose allowed in dashboard?
 - mark best woww (in plot and table)
 
 
@@ -74,6 +76,7 @@ class WOWWAnalysis():
         self.stats_table = self.stats_table()
         self.time_reference = self.time_reference()
         self.wowws_allowed = self.wowws_allowed()
+        self.stats_table_allowed = self.stats_table_allowed()
         self.op_time = self.op_time()
 
 
@@ -203,6 +206,14 @@ class WOWWAnalysis():
 
         return stats_table
 
+    def stats_table_allowed(self):
+        """
+        Dataframe of descriptive statistics for each WOWW that encompasses the calculated
+        time reference for the operation (i.e. duration of woww > time reference)
+        """
+
+        return self.stats_table.loc[:,self.wowws_allowed.columns]
+
     def tpop_h(self):
         """
         Time of operational procedure in hours. Derived from Tpop.
@@ -256,7 +267,7 @@ class WOWWAnalysis():
 
     def woww_analysis(self,
                       limits:bool=True,
-                      woows:bool=True,
+                      wowws:str='all',
                       times:bool=True,
                       stats:bool=True,
                       wowws_allowed:bool=True,
@@ -333,21 +344,28 @@ class WOWWAnalysis():
         from matplotlib.ticker import AutoMinorLocator
         ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 
-        if woows:
-            if wowws_allowed:
-                for col in self.wowws_allowed:
-                    ax.axvspan(self.wowws_allowed.loc['START',col],self.wowws_allowed.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
-            else:
-                for col in self.wowws:
-                    ax.axvspan(self.wowws.loc['START',col],self.wowws.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+        if wowws == 'all':
+            for col in self.wowws:
+                ax.axvspan(self.wowws.loc['START',col],self.wowws.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+        elif wowws == 'allowed':
+             for col in self.wowws_allowed:
+                ax.axvspan(self.wowws_allowed.loc['START',col],self.wowws_allowed.loc['END',col],facecolor='limegreen',alpha=0.6,zorder=1)
+        elif wowws == 'None':
+            pass
+
         if times:
             self.plot_times_table(ax=ax)
 
         if stats:
-            self.plot_stats_table(ax=ax)
+            self.plot_stats_table(ax=ax, wowws=wowws)
 
-    def plot_stats_table(self,ax=None):
-        stats_table_srt = self.stats_table.copy()
+    def plot_stats_table(self,ax=None, wowws='all'):
+
+        if wowws == 'all':
+            stats_table_srt = self.stats_table.copy()
+        elif wowws == 'allowed':
+            stats_table_srt = self.stats_table_allowed.copy()
+
         for column in stats_table_srt.columns:
             stats_table_srt.loc[['START','END'],column] = pd.to_datetime(stats_table_srt.loc[['START','END'],column]).dt.strftime("%Y-%m-%d %H:%M")
         stats_table_srt.loc['DURATION'] = stats_table_srt.loc['DURATION'].astype('str').str.replace('days','days')
@@ -363,7 +381,7 @@ class WOWWAnalysis():
             if (row == 0) or (col == -1):
                 cell.set_text_props(fontproperties=FontProperties(weight='bold'))
 
-    def plot_times_table(self,ax):
+    def plot_times_table(self, ax):
         wf_issuance = self.wf_issuance.strftime('%Y-%m-%d %H:%M')
         op_start = self.op_start.strftime('%Y-%m-%d %H:%M')
         op_end = self.op_end.strftime('%Y-%m-%d %H:%M')
