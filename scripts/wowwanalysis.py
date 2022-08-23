@@ -270,6 +270,7 @@ class WOWWAnalysis():
                       wowws:str='all',
                       times:bool=True,
                       stats:bool=True,
+                      op_period:bool=True,
                       wowws_allowed:bool=True,
                       op:bool=True):
         """
@@ -353,11 +354,20 @@ class WOWWAnalysis():
         elif wowws == 'None':
             pass
 
+        if op_period:
+            self.plot_op_period(ax=ax)
+
         if times:
             self.plot_times_table(ax=ax)
 
         if stats:
             self.plot_stats_table(ax=ax, wowws=wowws)
+
+    def plot_op_period(self,ax=None):
+        """
+        Plot op period
+        """
+        ax.axvspan(self.op_start,self.op_end,facecolor='darkgreen',alpha=0.5)
 
     def plot_stats_table(self,ax=None, wowws='all'):
 
