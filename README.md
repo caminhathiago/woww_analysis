@@ -5,8 +5,10 @@ A software for gathering, compiling and performing a weather window analysis wit
 ## To implement
 - Select best workable weather window based on statistical comparisons
 - Plot operation period (operation start + time reference)
-- Data access via API
+- Forecast data access via API
   - [WaveWatch III](https://coastwatch.pfeg.noaa.gov/erddap/griddap/NWW3_Global_Best.html)
   - [GLOBAL_ANALYSIS_FORECAST_PHY_001_024 (Copernicus)](https://resources.marine.copernicus.eu/product-detail/GLOBAL_ANALYSIS_FORECAST_PHY_001_024/INFORMATION)
+  - Winds (?)
+- Forecast validation using in situ data 
 
 
