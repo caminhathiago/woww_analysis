@@ -76,6 +76,7 @@ class WOWWAnalysis():
         self.stats_table = self.stats_table()
         self.time_reference = self.time_reference()
         self.wowws_allowed = self.wowws_allowed()
+        self.wowws_allowed_data = self.wowws_allowed_data()
         self.stats_table_allowed = self.stats_table_allowed()
         self.op_time = self.op_time()
 
@@ -162,10 +163,21 @@ class WOWWAnalysis():
             tper = self.data['Tper'].sel(time=slice(woww_per[0],woww_per[1]))
             cvel = self.data['cvel'].sel(time=slice(woww_per[0],woww_per[1]))
             data = np.array([thgt.values,tper.values,cvel.values]).T
-            data_local = pd.DataFrame(data,index=thgt['time'].values,columns=[f'swvht {i}',f'tper {i}',f'cvel {i}'])
+            data_local = pd.DataFrame(data,index=thgt['time'].values,columns=[f'swvht_{i}',f'tper_{i}',f'cvel_{i}'])
             wowws_data = wowws_data.append(data_local)
 
         return wowws_data
+
+    def wowws_allowed_data(self):
+        """
+        Returns data from allowed wowws
+        """
+        wowws_allowed_numbers = self.wowws_allowed.columns.str[-1]
+        pipe_str = '|'
+        reg_wowws_allowed_numbers = pipe_str.join(str(e) for e in wowws_allowed_numbers)
+        wowws_allowed_data = self.wowws_data.filter(regex=reg_wowws_allowed_numbers)
+
+        return wowws_allowed_data
 
 
     def stats_table(self):
