@@ -130,3 +130,6 @@ dmypy.json
 
 # data repo
 data/
+
+# deprecated scripts and notebooks
+scripts_dep/
