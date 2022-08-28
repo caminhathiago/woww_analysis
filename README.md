@@ -4,7 +4,14 @@ A software for gathering, compiling and performing a weather window analysis wit
 
 ## To implement
 - Plot operation period (operation start + time reference) [Done]
-- Implement wave direction (data selection, dashboard)
+- Implement interactive dashboard (Holoviz)
+  - Time-series plot
+  - Table with WOWWs statistics
+  - Table with times
+  - Map with time range slider
+- Implement relevant parameters (data selection, dashboard)
+  - Wave direction
+  - Winds 
 - Select best workable weather window based on statistical comparisons
 - Data access and processing
   - Forecast data access via API
@@ -13,5 +20,3 @@ A software for gathering, compiling and performing a weather window analysis wit
     - [GFS Atmospheric Model](https://coastwatch.pfeg.noaa.gov/erddap/griddap/NCEP_Global_Best.html)
   - Data processing 
 - Forecast validation using in situ data
-
-
