@@ -10,9 +10,8 @@ A software for gathering, compiling and performing a weather window analysis wit
   - Forecast data access via API
     - [WaveWatch III](https://coastwatch.pfeg.noaa.gov/erddap/griddap/NWW3_Global_Best.html)
     - [GLOBAL_ANALYSIS_FORECAST_PHY_001_024 (Copernicus)](https://resources.marine.copernicus.eu/product-detail/GLOBAL_ANALYSIS_FORECAST_PHY_001_024/INFORMATION)
-    - Winds (?)
+    - [GFS Atmospheric Model](https://coastwatch.pfeg.noaa.gov/erddap/griddap/NCEP_Global_Best.html)
   - Data processing 
 - Forecast validation using in situ data
-- 
 
 
