@@ -18,6 +18,7 @@ To implement:
 
 """
 
+from ctypes import alignment
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -27,6 +28,8 @@ import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 from matplotlib.lines import Line2D
 from matplotlib.font_manager import FontProperties
+
+import plotly.graph_objects as go
 
 idx = pd.IndexSlice
 
@@ -69,17 +72,24 @@ class WOWWAnalysis():
         self.alpha_factor = alpha_factor
         self.td_woww_threshold = td_woww_threshold
         self.figsize = figsize
-        self.wowws_datetimes = self.wowws_datetimes()
-        self.wowws = self.wowws()
+
         self.cont_time = self.cont_time()
-        self.wowws_data = self.wowws_data()
-        self.stats_table = self.stats_table()
-        self.time_reference = self.time_reference()
-        self.wowws_allowed = self.wowws_allowed()
-        self.wowws_allowed_data = self.wowws_allowed_data()
-        self.stats_table_allowed = self.stats_table_allowed()
         self.op_time = self.op_time()
 
+        try:
+            self.wowws_datetimes = self.wowws_datetimes()
+            self.wowws = self.wowws()
+
+            self.wowws_data = self.wowws_data()
+            self.stats_table = self.stats_table()
+            self.time_reference = self.time_reference()
+            self.wowws_allowed = self.wowws_allowed()
+            self.wowws_allowed_data = self.wowws_allowed_data()
+            self.stats_table_allowed = self.stats_table_allowed()
+
+            self.status = f"{len(self.wowws.columns)} Workable weather windows were found.\n{len(self.wowws_allowed.columns)} within the calculated Time Reference."
+        except:
+            self.status = "No Workable Weather Windows found for the period."
 
 
 
@@ -161,6 +171,7 @@ class WOWWAnalysis():
 
         # generate dataframe for statistics performance
         wowws_data = pd.DataFrame([], index=self.data['time'].values)
+
         for woww_per, i in zip(self._wowws_array, range(1, len(self._wowws_array)+1)):
             thgt = self.data['swvht'].sel(time=slice(woww_per[0], woww_per[1]))
             tper = self.data['Tper'].sel(time=slice(woww_per[0], woww_per[1]))
@@ -199,25 +210,21 @@ class WOWWAnalysis():
         stats = stats[['mean_std', '50%']]
         stats = stats.T
 
-        stats_swvht = stats.filter(regex='swvht ', axis=1)
-        stats_tper = stats.filter(regex='tper ', axis=1)
-        stats_cvel = stats.filter(regex='cvel ', axis=1)
+        stats_swvht = stats.filter(regex='swvht', axis=1)
+        stats_tper = stats.filter(regex='tper', axis=1)
+        stats_cvel = stats.filter(regex='cvel', axis=1)
 
         stats_swvht = stats_swvht.rename({'mean_std':'Hs (mean \u00B1 std)', '50%': 'Hs (median)'})
-        stats_swvht.columns = stats_swvht.columns.str.replace('swvht', 'WINDOW')
+        stats_swvht.columns = stats_swvht.columns.str.replace('swvht_', 'WINDOW ')
+
         stats_tper = stats_tper.rename({'mean_std':'Tp (mean \u00B1 std)', '50%': 'Tp (median)'})
-        stats_tper.columns = stats_tper.columns.str.replace('tper', 'WINDOW')
+        stats_tper.columns = stats_tper.columns.str.replace('tper_', 'WINDOW ')
 
         stats_cvel = stats_cvel.rename({'mean_std':'Cvel (mean \u00B1 std)', '50%': 'Cvel (median)'})
-        stats_cvel.columns = stats_cvel.columns.str.replace('cvel', 'WINDOW')
+        stats_cvel.columns = stats_cvel.columns.str.replace('cvel_', 'WINDOW ')
 
         stats_table = self.wowws.copy()
-        for index in stats_swvht.index:
-            stats_table.loc[index] = stats_swvht.loc[index]
-        for index in stats_tper.index:
-            stats_table.loc[index] = stats_tper.loc[index]
-        for index in stats_cvel.index:
-            stats_table.loc[index] = stats_cvel.loc[index]
+        stats_table = pd.concat([stats_table, stats_swvht, stats_tper, stats_cvel])
 
 
         return stats_table
@@ -245,7 +252,8 @@ class WOWWAnalysis():
         The contingency time of the marine operation. Calculated with the
         contingency factor
         """
-
+        print(self.cont_factor)
+        print(self.tpop_h)
         return pd.Timedelta(self.cont_factor*self.tpop_h, 'h')
 
     def wf_from_op(self):
@@ -263,7 +271,7 @@ class WOWWAnalysis():
         Time reference of the marine operation.
         """
 
-        return self.wf_from_op + self.tpop_h + self.cont_time
+        return self.tpop_h + self.cont_time # + self.wf_from_op
 
 
     def op_time(self):
@@ -275,7 +283,8 @@ class WOWWAnalysis():
         wf_op_dur = self.op_start - self.wf_issuance
         wf_op_dur = pd.Timedelta(wf_op_dur, 'h')
 
-        tr = wf_op_dur + self.tpop_h + self.cont_time
+
+        tr = self.tpop_h + self.cont_time # + wf_op_dur
         op_end = self.op_start + tr
         self.op_end = op_end
         op_duration = op_end - self.op_start
@@ -434,3 +443,135 @@ class WOWWAnalysis():
         for (row, col), cell in op_table.get_celld().items():
             if (col == -1):
                 cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+
+
+    def woww_analysis_interactive(self,
+                                  width,
+                                  height):
+
+        fig = go.Figure()
+
+        # data
+        trace_swvht = go.Scatter(x=self.data['time'],
+                                 y=self.data['swvht'],
+                                name='Hs')
+        trace_tper = go.Scatter(x=self.data['time'],
+                                y=self.data['Tper'],
+                                name='Tp',
+                                yaxis='y2',
+                                line=dict(color="#FF0000"))
+        trace_cvel = go.Scatter(x=self.data['time'],
+                                y=self.data['cvel'],
+                                name='Current Vel',
+                                yaxis='y3')
+
+        fig.add_trace(trace_swvht)
+        fig.add_trace(trace_tper)
+        fig.add_trace(trace_cvel)
+
+
+        # Limits
+        # fig.add_hline(y=self.swvht_limit, line_width=1) # bug not corrected
+        # fig.add_hline(y=self.tper_limit, yref="y2", line_width=1)
+        # fig.add_hline(y=self.cvel_limit, yref="y3", line_width=1)
+        x0 = self.data['time'].min().values
+        x1 = self.data['time'].max().values
+
+
+        # fig.add_shape(type="line",
+        #                 xref="paper", yref="y2",
+        #                 x0=x0, y0=self.tper_limit, x1=x1, y1=self.tper_limit,
+        #                 line=dict(
+        #                     color="red",
+        #                     dash="dash",
+        #                     width=3
+        #                 )
+        #                 )
+        swvht_limit = go.Scatter(name='Hs limit',
+                            x=self.data['time'],
+                            y=np.repeat(self.swvht_limit, len(self.data['time'])),
+                            yaxis="y",
+                            line=dict(color="#0000ff",
+                                        dash="dash",
+                                        width=0.5) )
+
+        tper_limit = go.Scatter(name='Ts limit',
+                            x=self.data['time'],
+                            y=np.repeat(self.tper_limit, len(self.data['time'])),
+                            yaxis="y2",
+                            line=dict(color="#FF0000",
+                                        dash="dash",
+                                        width=0.5) )
+
+        cvel_limit = go.Scatter(name='Cvel limit',
+                            x=self.data['time'],
+                            y=np.repeat(self.cvel_limit, len(self.data['time'])),
+                            yaxis="y3",
+                            line=dict(color="#006400",
+                                        dash="dash",
+                                        width=0.5) )
+
+        fig.add_trace(swvht_limit)
+        fig.add_trace(tper_limit)
+        fig.add_trace(cvel_limit)
+
+
+
+        fig.update_layout(width=width, height=height,
+            template="simple_white",
+            # split the x-axis to fraction of plots in
+            # proportions
+            xaxis=dict(
+                domain=[0.05,1]
+            ),
+
+            # pass the y-axis title, titlefont, color
+            # and tickfont as a dictionary and store
+            # it an variable yaxis
+            yaxis=dict(
+                title="Hs (m)",
+                titlefont=dict(
+                    color="#0000ff"
+                ),
+                tickfont=dict(
+                    color="#0000ff"
+                )
+            ),
+
+            # pass the y-axis 2 title, titlefont, color and
+            # tickfont as a dictionary and store it an
+            # variable yaxis 2
+            yaxis2=dict(
+                title="Ts (s)",
+                titlefont=dict(
+                    color="#FF0000"
+                ),
+                tickfont=dict(
+                    color="#FF0000"
+                ),
+                anchor="free",  # specifying x - axis has to be the fixed
+                overlaying="y",  # specifyinfg y - axis has to be separated
+                side="left",  # specifying the side the axis should be present
+                position=0 # specifying the position of the axis
+            ),
+
+            # pass the y-axis 3 title, titlefont, color and
+            # tickfont as a dictionary and store it an
+            # variable yaxis 3
+            yaxis3=dict(
+                title="Cvel (kt)",
+                titlefont=dict(
+                    color="#006400"
+                ),
+                tickfont=dict(
+                    color="#006400"
+                ),
+                anchor="x",     # specifying x - axis has to be the fixed
+                overlaying="y",  # specifyinfg y - axis has to be separated
+                side="right"  # specifying the side the axis should be present
+            ),
+
+            legend=dict(y=1.15, x=0.5, orientation="h",xanchor='center'))
+
+
+        return fig
